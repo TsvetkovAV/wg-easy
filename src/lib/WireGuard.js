@@ -267,7 +267,7 @@ Endpoint = ${WG_HOST}:${WG_PORT}`;
 
     await this.saveConfig();
 
-    return client;
+    return {id: clientId, ...client};
   }
 
   async deleteClient({ clientId }) {
