@@ -6,7 +6,7 @@
 class API {
 
   async call({ method, path, body }) {
-    const res = await fetch(`./api${path}`, {
+    const res = await fetch(`/api${path}`, {
       method,
       headers: {
         'Content-Type': 'application/json',
@@ -117,4 +117,11 @@ class API {
     });
   }
 
+  async updateClientAddress6({ clientId, address6 }) {
+    return this.call({
+      method: 'put',
+      path: `/wireguard/client/${clientId}/address6/`,
+      body: { address6 },
+    });
+  }
 }

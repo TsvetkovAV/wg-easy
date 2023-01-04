@@ -25,6 +25,9 @@ function bytes(bytes, decimals, kib, maxunit) {
 
 new Vue({
   el: '#app',
+  components: {
+    apexchart: VueApexCharts,
+  },
   data: {
     authenticated: null,
     authenticating: false,
@@ -40,6 +43,8 @@ new Vue({
     clientEditNameId: null,
     clientEditAddress: null,
     clientEditAddressId: null,
+    clientEditAddress6: null,
+    clientEditAddress6Id: null,
     qrcode: null,
 
     currentRelease: null,
@@ -48,36 +53,31 @@ new Vue({
     chartOptions: {
       chart: {
         background: 'transparent',
-        type: 'bar',
-        stacked: false,
+        type: 'area',
         toolbar: {
           show: false,
         },
-        animations: {
-          enabled: false,
-        },
       },
-      colors: [
-        '#DDDDDD', // rx
-        '#EEEEEE', // tx
-      ],
+      fill: {
+        type: 'gradient',
+      },
+      colors: ['#CCCCCC'],
       dataLabels: {
         enabled: false,
       },
-      plotOptions: {
-        bar: {
-          horizontal: false,
-        },
+      stroke: {
+        curve: 'smooth',
+        width: 0,
       },
       xaxis: {
         labels: {
           show: false,
         },
         axisTicks: {
-          show: true,
+          show: false,
         },
         axisBorder: {
-          show: true,
+          show: false,
         },
       },
       yaxis: {
@@ -121,9 +121,7 @@ new Vue({
         minute: 'numeric',
       }).format(value);
     },
-    async refresh({
-      updateCharts = false,
-    } = {}) {
+    async refresh() {
       if (!this.authenticated) return;
 
       const clients = await this.api.getClients();
@@ -134,38 +132,46 @@ new Vue({
 
         if (!this.clientsPersist[client.id]) {
           this.clientsPersist[client.id] = {};
-          this.clientsPersist[client.id].transferRxHistory = Array(50).fill(0);
+          this.clientsPersist[client.id].transferRxHistory = Array(20).fill(0);
           this.clientsPersist[client.id].transferRxPrevious = client.transferRx;
-          this.clientsPersist[client.id].transferTxHistory = Array(50).fill(0);
-          this.clientsPersist[client.id].transferTxPrevious = client.transferTx;
-        }
-
-        // Debug
-        // client.transferRx = this.clientsPersist[client.id].transferRxPrevious + Math.random() * 1000;
-        // client.transferTx = this.clientsPersist[client.id].transferTxPrevious + Math.random() * 1000;
-
-        if (updateCharts) {
-          this.clientsPersist[client.id].transferRxCurrent = client.transferRx - this.clientsPersist[client.id].transferRxPrevious;
-          this.clientsPersist[client.id].transferRxPrevious = client.transferRx;
-          this.clientsPersist[client.id].transferTxCurrent = client.transferTx - this.clientsPersist[client.id].transferTxPrevious;
+          this.clientsPersist[client.id].transferTxHistory = Array(20).fill(0);
           this.clientsPersist[client.id].transferTxPrevious = client.transferTx;
 
-          this.clientsPersist[client.id].transferRxHistory.push(this.clientsPersist[client.id].transferRxCurrent);
-          this.clientsPersist[client.id].transferRxHistory.shift();
-
-          this.clientsPersist[client.id].transferTxHistory.push(this.clientsPersist[client.id].transferTxCurrent);
-          this.clientsPersist[client.id].transferTxHistory.shift();
+          this.clientsPersist[client.id].chartOptions = {
+            ...this.chartOptions,
+            yaxis: {
+              ...this.chartOptions.yaxis,
+              max: () => this.clientsPersist[client.id].chartMax,
+            },
+          };
         }
+
+        this.clientsPersist[client.id].transferRxCurrent = client.transferRx - this.clientsPersist[client.id].transferRxPrevious;
+        this.clientsPersist[client.id].transferRxPrevious = client.transferRx;
+        this.clientsPersist[client.id].transferTxCurrent = client.transferTx - this.clientsPersist[client.id].transferTxPrevious;
+        this.clientsPersist[client.id].transferTxPrevious = client.transferTx;
+
+        this.clientsPersist[client.id].transferRxHistory.push(this.clientsPersist[client.id].transferRxCurrent);
+        this.clientsPersist[client.id].transferRxHistory.shift();
+
+        this.clientsPersist[client.id].transferTxHistory.push(this.clientsPersist[client.id].transferTxCurrent);
+        this.clientsPersist[client.id].transferTxHistory.shift();
 
         client.transferTxCurrent = this.clientsPersist[client.id].transferTxCurrent;
+        client.transferTxSeries = [{
+          name: 'tx',
+          data: this.clientsPersist[client.id].transferTxHistory,
+        }];
+
         client.transferRxCurrent = this.clientsPersist[client.id].transferRxCurrent;
+        client.transferRxSeries = [{
+          name: 'rx',
+          data: this.clientsPersist[client.id].transferRxHistory,
+        }];
 
-        client.transferTxHistory = this.clientsPersist[client.id].transferTxHistory;
-        client.transferRxHistory = this.clientsPersist[client.id].transferRxHistory;
-        client.transferMax = Math.max(...client.transferTxHistory, ...client.transferRxHistory);
+        this.clientsPersist[client.id].chartMax = Math.max(...this.clientsPersist[client.id].transferTxHistory, ...this.clientsPersist[client.id].transferRxHistory);
 
-        client.hoverTx = this.clientsPersist[client.id].hoverTx;
-        client.hoverRx = this.clientsPersist[client.id].hoverRx;
+        client.chartOptions = this.clientsPersist[client.id].chartOptions;
 
         return client;
       });
@@ -239,6 +245,11 @@ new Vue({
         .catch(err => alert(err.message || err.toString()))
         .finally(() => this.refresh().catch(console.error));
     },
+    updateClientAddress6(client, address6) {
+      this.api.updateClientAddress6({ clientId: client.id, address6 })
+        .catch(err => alert(err.message || err.toString()))
+        .finally(() => this.refresh().catch(console.error));
+    },
   },
   filters: {
     bytes,
@@ -252,9 +263,7 @@ new Vue({
       .then(session => {
         this.authenticated = session.authenticated;
         this.requiresPassword = session.requiresPassword;
-        this.refresh({
-          updateCharts: true,
-        }).catch(err => {
+        this.refresh().catch(err => {
           alert(err.message || err.toString());
         });
       })
@@ -263,9 +272,7 @@ new Vue({
       });
 
     setInterval(() => {
-      this.refresh({
-        updateCharts: true,
-      }).catch(console.error);
+      this.refresh().catch(console.error);
     }, 1000);
 
     Promise.resolve().then(async () => {
