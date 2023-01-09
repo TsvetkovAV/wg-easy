@@ -140,6 +140,14 @@ new Vue({
           this.clientsPersist[client.id].transferRxPrevious = client.transferRx;
           this.clientsPersist[client.id].transferTxHistory = Array(50).fill(0);
           this.clientsPersist[client.id].transferTxPrevious = client.transferTx;
+
+          this.clientsPersist[client.id].chartOptions = {
+            ...this.chartOptions,
+            yaxis: {
+              ...this.chartOptions.yaxis,
+              max: () => this.clientsPersist[client.id].chartMax,
+            },
+          };
         }
 
         // Debug
