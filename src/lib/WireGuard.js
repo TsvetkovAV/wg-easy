@@ -120,7 +120,8 @@ PostDown = ${WG_POST_DOWN}
 [Peer]
 PublicKey = ${client.publicKey}
 PresharedKey = ${client.preSharedKey}
-AllowedIPs = ${client.address}/32, ${client.address6}/128`;
+AllowedIPs = ${client.address}/32, ${client.address6}/128
+PersistentKeepalive = ${WG_PERSISTENT_KEEPALIVE}`;
     }
 
     debug('Config saving...');
@@ -187,7 +188,9 @@ AllowedIPs = ${client.address}/32, ${client.address6}/128`;
           : new Date(Number(`${latestHandshakeAt}000`));
         client.transferRx = Number(transferRx);
         client.transferTx = Number(transferTx);
-        client.persistentKeepalive = persistentKeepalive;
+        client.persistentKeepalive = persistentKeepalive === 'off'
+          ? 0
+          : Number(persistentKeepalive);
         client.allowedIPs = allowedIPs;
       });
 

@@ -45,7 +45,6 @@ if (!process.env.WG_POST_UP) {
   module.exports.WG_POST_UP = module.exports.WG_POST_UP.split('\n').join(' ');
 }
 
-
 module.exports.WG_PRE_DOWN = process.env.WG_PRE_DOWN || '';
 module.exports.WG_POST_DOWN = process.env.WG_POST_DOWN || '';
 
